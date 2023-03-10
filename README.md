@@ -1,9 +1,3 @@
-# 실습을 위한 개발 환경 세팅
-* https://github.com/slipp/web-application-server 프로젝트를 자신의 계정으로 Fork한다. Github 우측 상단의 Fork 버튼을 클릭하면 자신의 계정으로 Fork된다.
-* Fork한 프로젝트를 eclipse 또는 터미널에서 clone 한다.
-* Fork한 프로젝트를 eclipse로 import한 후에 Maven 빌드 도구를 활용해 eclipse 프로젝트로 변환한다.(mvn eclipse:clean eclipse:eclipse)
-* 빌드가 성공하면 반드시 refresh(fn + f5)를 실행해야 한다.
-
 # 웹 서버 시작 및 테스트
 * webserver.WebServer 는 사용자의 요청을 받아 RequestHandler에 작업을 위임하는 클래스이다.
 * 사용자 요청에 대한 모든 처리는 RequestHandler 클래스의 run() 메서드가 담당한다.
@@ -15,7 +9,11 @@
 * 각 요구사항을 구현하는 것이 중요한 것이 아니라 구현 과정을 통해 학습한 내용을 인식하는 것이 배움에 중요하다. 
 
 ### 요구사항 1 - http://localhost:8080/index.html로 접속시 응답
-* 
+* WebServer class에서 ServerSocket클래스를 생성하여 RequestHandler class에 인자로 넘겨줌.
+* RequestHandler class에서는 소켓의 inputstream과 outputstream을 이용하여 클라이언트와 통신.
+* 따라서 http 방식으로 전달된 요청을 inputstream을 통해 읽어서 index.html로 반환하는 코드가 필요.
+* /index.html로 접속할 경우 자동으로 inputstream에 httpheader가 전달됨. 
+* 사이트에 접속할 경우 스레드 하나에 모든 데이터가 클라이언트로 전송되는 것이 아니라 여러 번의 요청으로 스레드가 생성되어 데이터가 전송된다.
 
 ### 요구사항 2 - get 방식으로 회원가입
 * 
