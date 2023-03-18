@@ -9,10 +9,11 @@ import com.google.common.collect.Maps;
 
 public class HttpRequestUtils {
 
-    public static String getUrl(String line) {
+    public static String[] parseLine(String line) {
         String[] tokens = line.split(" ");
-        return tokens[1];
+        return Arrays.copyOfRange(tokens, 0, 2);
     }
+
 
     /**
      * @param queryString은
