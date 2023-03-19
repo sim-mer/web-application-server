@@ -4,8 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.sql.SQLOutput;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 
 import db.DataBase;
 import model.User;
@@ -37,17 +36,12 @@ public class RequestHandler extends Thread {
             }
             log.debug("request line : {}", line);
             url = HttpRequestUtils.parseLine(line);
-            //방식을 바꿔서 첫 라인만 parse를 하고 나머지는 헤더를 다 읽는걸 기본으로 하는 코드로?
 
             byte[] body = null;
             DataOutputStream dos = new DataOutputStream(out);
             if (url[0].equals("GET")) {
-                body = requestGet(url[1]);
-                if (url[1].equals("/index.html")) {
-                    while (!(line = br.readLine()).equals("")) {
-                        log.debug(line);
-                    }
-                }
+                log.debug(url[1]);
+                body = requestGet(url[1], br);
             }
             if (url[0].equals("POST")) {
                 int contentlength = 0;
@@ -62,7 +56,11 @@ public class RequestHandler extends Thread {
                 return;
             }
 
-            response200Header(dos, body.length);
+            if (url[1].contains("css")) {
+                response200cssHeader(dos, body.length);
+            } else {
+                response200Header(dos, body.length);
+            }
             responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -73,6 +71,17 @@ public class RequestHandler extends Thread {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response200cssHeader(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
@@ -96,7 +105,17 @@ public class RequestHandler extends Thread {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Set-Cookie: logined=true \r\n");
-            log.debug("set cookie");
+            dos.writeBytes("Location: " + location);
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+    private void response302loginFail(DataOutputStream dos) {
+        String location = "/index.html";
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Set-Cookie: logined=false \r\n");
             dos.writeBytes("Location: " + location);
             dos.writeBytes("\r\n");
         } catch (IOException e) {
@@ -113,11 +132,40 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private byte[] requestGet(String url) throws IOException {
+    private byte[] requestGet(String url, BufferedReader br) throws IOException {
         if (url.equals("/")) {
             return "Hello World".getBytes();
         }
+        if (url.equals("/user/list")) {
+            String line;
+            while (!(line = br.readLine()).equals("")) {
+                log.debug(line);
+                if (line.contains("Cookie:")) {
+                    String[] tokens = line.split(" ");
+                    Map<String, String> map = HttpRequestUtils.parseCookies(tokens[1]);
+                    Boolean logined = Boolean.parseBoolean(map.get("logined"));
+                    if (logined) {
+                        DataBase db = DataBase.getInstance();
+                        Collection<User> userList = db.findAll();
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("<table border='1'>");
+                        for (User user : userList) {
+                            sb.append("<tr>");
+                            sb.append("<td>" + user.getUserId() + "</td>");
+                            sb.append("<td>" + user.getName() + "</td>");
+                            sb.append("<td>" + user.getEmail() + "</td>");
+                            sb.append("</tr>");
+                        }
+                        sb.append("</table>");
+                        return sb.toString().getBytes();
+                    } else {
+                        Files.readAllBytes(new File("./webapp/user/login.html").toPath());
+                    }
+                }
+            }
+        }
         return Files.readAllBytes(new File("./webapp" + url).toPath());
+
     }
 
     private void requestPost(String url, BufferedReader br, int contentLength, DataOutputStream dos) throws IOException {
@@ -135,6 +183,8 @@ public class RequestHandler extends Thread {
             User user = db.findUserById(map.get("userId"));
             if (user.getPassword().equals(map.get("password"))) {
                 response302loginSuccess(dos);
+            } else {
+                response302loginFail(dos);
             }
         }
     }
